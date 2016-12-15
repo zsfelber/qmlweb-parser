@@ -349,6 +349,9 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       namespace = S.token.value;
       next();
     }
+    // need to skip semicolon opt
+    if (is("punc", ";"))
+      next();
     return as("qmlimport", moduleName, version, namespace, isDottedNotation);
   }
 
