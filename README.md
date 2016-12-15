@@ -23,4 +23,4 @@ QmlWeb parser is licensed under the BSD-2-Clause license, see
 
 ## This Fork/Branch
 
-Intended to fix parse errors (like that of readonly property) and maybe another simple bugs which prevent my actual qml model to be compiled and used.
+Intended to fix parse errors (like that of readonly property) and maybe another simple bugs which prevent my actual qml model to be compiled and used .
