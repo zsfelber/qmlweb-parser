@@ -98,6 +98,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   parse($TEXT,exigent_mode,false);
   // NOTE: Don't insert spaces between arguments!
 
+  var block_in_qmljsonlike = 0;
+
   // Override UglifyJS methods
 
   croak = function(msg, line, col, pos) {
@@ -184,16 +186,24 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     return qml_is_element(name[1]) && name[2][0].toUpperCase() === name[2][0];
   }
 
+  function qmlblockline(a,first,even) {
+    if (is("eof"))
+      unexpected();
+    a.push(qmlstatement(first,even));
+  }
+
   function qmlblock() {
     expect("{");
     var a = [];
-    var is_first = true;
-    while (!is("punc", "}")) {
-      if (is("eof"))
-        unexpected();
-      a.push(qmlstatement(is_first));
-      is_first = 0;
+    var was_json = block_in_qmljsonlike;
+    var even = false;
+    if (!is("punc", "}")) {
+      qmlblockline(a,true);
     }
+    while (!is("punc", "}")) {
+      qmlblockline(a,false,even=!even);
+    }
+    block_in_qmljsonlike = was_json;
     expect("}");
     return a;
   }
@@ -272,25 +282,24 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     return as("qmlsignaldef", name, args);
   }
 
-  function qmlstatement(is_block_begin) {
-    if (is("keyword", "function")) {
-      var from = S.token.pos;
-      next();
-      var stat = function_(true);
-      var to = S.token.pos;
-      var name = stat[1];
-      return as("qmlmethod", name, stat, TEXT.substr(from, to - from));
-    } else if (is("name", "signal")) {
-      next();
-      if (is("punc", ":")) {
+  function qmlstatement(is_block_begin,is_even) {
+    if (!block_in_qmljsonlike) {
+      if (is("keyword", "function")) {
+        var from = S.token.pos;
         next();
-        return as_statement("qmlprop", "signal");
-      } else {
-        return qmlsignaldef();
-      }
-    } else {
-      var ispropdef=0;
-      if (S.token.type == "name") {
+        var stat = function_(true);
+        var to = S.token.pos;
+        var name = stat[1];
+        return as("qmlmethod", name, stat, TEXT.substr(from, to - from));
+      } else if (is("name", "signal")) {
+        next();
+        if (is("punc", ":")) {
+          next();
+          return as_statement("qmlprop", "signal");
+        } else {
+          return qmlsignaldef();
+        }
+      } else if (S.token.type == "name") {
         if (S.token.value == "readonly") {
           return qmlpropdefro();
         }
@@ -298,24 +307,15 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           next();
           return qmlpropdef();
         }
-        ispropdef=true;
-      } else if (S.token.type == "operator"||S.token.type == "atom") { 
-        ispropdef=true;
-      } else if (is_block_begin && S.token.type == "string") {
-    //     var xxx = { json-like-syntax }
-        ispropdef=/[a-zA-Z_$0-9]+/.test(S.token.value);
-        statement.in_qmljsonlike = true;
-      }
 
-      if (ispropdef) {
         var propname = subscripts(as_name(), false);
         if (qml_is_element(propname)) {
           // Element
           var onProp;
           if (is("name", "on")) {
-            next();
-            onProp = S.token.value;
-            next();
+              next();
+              onProp = S.token.value;
+              next();
           }
           return as("qmlelem", propname, onProp, qmlblock());
         } else if (is("punc", "{")) {
@@ -325,13 +325,41 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           expect(":");
           return as_statement("qmlprop", propname);
         }
-      } else if (S.token.type == "string") {
-        unexpected();
       } else if (is("keyword", "default")) {
         return qmldefaultprop();
-      } else {
-        todo();
       }
+    } else if (is_even) {
+      var result = statement();
+      if (!is("punc", ",") && !is("punc", "}")) {
+        unexpected();
+      }
+      return result;
+    }
+
+    if (S.token.type == "string") {
+      var valid_lab = /[a-zA-Z_$0-9]+/.test(S.token.value);
+      if (valid_lab) {
+        if (is_block_begin) {
+          // "var xxx = { json-like-syntax }"
+          block_in_qmljsonlike = true;
+        }
+        if (block_in_qmljsonlike) {
+          // Evaluatable item
+          var propname = subscripts(as_name(), false);
+          expect(":");
+          return as_statement("qmlprop", propname);
+        } else {
+          unexpected();
+        }
+      } else if (is_block_begin || block_in_qmljsonlike) {
+        token_error(S.token, "Invalid label. Expected : \"property name\".");
+      } else {
+        unexpected();
+      }
+    } else if (S.token.type == "number"||S.token.type == "operator"||S.token.type == "atom") {
+      unexpected();
+    } else {
+      todo();
     }
   }
 
