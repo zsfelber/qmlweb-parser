@@ -127,6 +127,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       switch (S.token.value) {
       case ".":
         return is_token(peek(), "name", "pragma") ? qml_pragma_statement() : unexpected();
+      case "{":
+        return qmlblock();
       }
     case "keyword":
       switch (S.token.value) {
