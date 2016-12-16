@@ -90,6 +90,7 @@ function qmlweb_tokenizer($TEXT) {
 
 function qmlweb_parse($TEXT, document_type, exigent_mode) {
   var embed_tokens = false; // embed_tokens option is not supported
+  var block_in_qmljsonlike = false;
 
   var TEXT = $TEXT.replace(/\r\n?|[\n\u2028\u2029]/g, "\n").replace(/^\uFEFF/, '');
   $TEXT = qmlweb_tokenizer($TEXT, true);
@@ -97,8 +98,6 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   // WARNING: Here the original parse() code gets embedded
   parse($TEXT,exigent_mode,false);
   // NOTE: Don't insert spaces between arguments!
-
-  var block_in_qmljsonlike = 0;
 
   // Override UglifyJS methods
 
