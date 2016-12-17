@@ -367,6 +367,9 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       }
     } else if (S.token.type == "number"||S.token.type == "operator"||S.token.type == "atom") {
       unexpected();
+    } else if (is("punc", ";")) {
+      // just skip semicolon opt
+      next();
     } else {
       todo();
     }
