@@ -119,7 +119,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   };
 
   var statement_js = statement;
-  statement = function() {
+  statement = function(forw_call) {
     var in_qmlpropdef = !!statement.in_qmlpropdef;
     statement.in_qmlpropdef = false;
     switch (S.token.type) {
@@ -141,7 +141,10 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         }
       }
     }
-    return statement_js();
+    if (forw_call)
+      return forw_call();
+    else
+      return statement_js();
   };
 
   array_ = function() {
@@ -162,6 +165,13 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     return expr;
   };
 
+  function expr_statement() {
+    var res = [];
+    res.push("stat");
+    res.push(expression(false));
+    return res;
+  }
+
   // QML-specific methods
 
   function as_statement() {
@@ -178,8 +188,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     var res = slice(arguments);
     S.in_function++;
     var start = S.token.pos;
-    res.push("stat");
-    res.push(expression(false));
+    res.push(statement(expr_statement));
     var end = S.token.pos;
     S.in_function--;
     res.push(TEXT.substr(start, end - start));
@@ -313,7 +322,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           return qmlsignaldef();
         }
       } else if (S.token.type == "name") {
-        if (S.token.value == "readonly") {
+        if (S.token.value == "readonly" && is_token(peek(), "name", "property")) {
           return qmlpropdefro();
         }
         if (S.token.value == "property" && !is_token(peek(), "punc", ":")) {
@@ -336,6 +345,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         } else {
           // Evaluatable item
           expect(":");
+          var event_handler = /^on[A-Z][a-zA-Z_$0-9]*$/.test(propname);
+          statement.in_qmlpropdef = !event_handler;
           return as_statement("qmlprop", propname);
         }
       } else if (is("keyword", "default")) {
@@ -356,12 +367,13 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           next();
           // Evaluatable item
           expect(":");
+          statement.in_qmlpropdef = true;
           return as_expr_statement("qmlprop", S.token.value);
         } else {
           unexpected();
         }
       } else if (!!is_block_begin || block_in_qmljsonlike) {
-        token_error(S.token, "Invalid label. Expected : \"property name\".");
+        token_error(S.token, "Invalid property id. Expected : \"property name\".");
       } else {
         unexpected();
       }
