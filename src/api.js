@@ -346,7 +346,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           // Evaluatable item
           expect(":");
           var prop_matters = propname instanceof Array?propname[propname.length-1]:propname;
-          var event_handler = /^on[A-Z][a-zA-Z_$0-9]*$/.test(prop_matters);
+          var event_handler = /^on_?[A-Z][a-zA-Z_$0-9]*$/.test(prop_matters);
           statement.in_qmlpropdef = !event_handler;
           return as_statement("qmlprop", propname);
         }
