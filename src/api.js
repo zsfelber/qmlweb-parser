@@ -174,6 +174,17 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     res.push(TEXT.substr(start, end - start));
     return res;
   }
+  function as_expr_statement() {
+    var res = slice(arguments);
+    S.in_function++;
+    var start = S.token.pos;
+    res.push("stat");
+    res.push(expression(false));
+    var end = S.token.pos;
+    S.in_function--;
+    res.push(TEXT.substr(start, end - start));
+    return res;
+  }
 
   function maybe_qmlelem(no_in) {
     var expr = maybe_assign(no_in);
@@ -189,22 +200,21 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     return qml_is_element(name[1]) && name[2][0].toUpperCase() === name[2][0];
   }
 
-  function qmlblockline(a,first,even) {
+  function qmlblockline(a,first) {
     if (is("eof"))
       unexpected();
-    a.push(qmlstatement(first,even));
+    a.push(qmlstatement(first));
   }
 
   function qmlblock() {
     expect("{");
     var a = [];
     var was_json = block_in_qmljsonlike;
-    var even = false;
     if (!is("punc", "}")) {
       qmlblockline(a,true);
     }
     while (!is("punc", "}")) {
-      qmlblockline(a,false,even=!even);
+      qmlblockline(a,false);
     }
     block_in_qmljsonlike = was_json;
     expect("}");
@@ -285,7 +295,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     return as("qmlsignaldef", name, args);
   }
 
-  function qmlstatement(is_block_begin,is_even) {
+  function qmlstatement(is_block_begin) {
     if (!block_in_qmljsonlike) {
       if (is("keyword", "function")) {
         var from = S.token.pos;
@@ -331,12 +341,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       } else if (is("keyword", "default")) {
         return qmldefaultprop();
       }
-    } else if (!!is_even) {
-      var result = statement();
-      if (!is("punc", ",") && !is("punc", "}")) {
-        unexpected();
-      }
-      return result;
+    } else {
+      expect(",");
     }
 
     if (S.token.type == "string") {
@@ -350,7 +356,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           next();
           // Evaluatable item
           expect(":");
-          return as_statement("qmlprop", S.token.value);
+          return as_expr_statement("qmlprop", S.token.value);
         } else {
           unexpected();
         }
