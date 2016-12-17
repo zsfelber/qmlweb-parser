@@ -128,7 +128,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       case ".":
         return is_token(peek(), "name", "pragma") ? qml_pragma_statement() : unexpected();
       case "{":
-        if (in_qmlpropdef) {
+        if (in_qmlpropdef && is_token(peek(), "string", null)) {
           return qmlblock();
         }
       }
