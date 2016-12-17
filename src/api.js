@@ -187,9 +187,9 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     var res = slice(arguments);
     return as_xxx_statement(res,statement);
   }
-  function as_js_statement() {
+  function as_statement_js() {
     var res = slice(arguments);
-    return as_xxx_statement(res,js_statement);
+    return as_xxx_statement(res,statement_js);
   }
   function as_expr_statement() {
     var res = slice(arguments);
@@ -367,44 +367,38 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         var event_handler = /^on_?[A-Z][a-zA-Z_$0-9]*$/.test(prop_matters);
         // event hanler : js statement or block,  otherwise : qml block/function/js statement or block
         if (event_handler) {
-          return as_js_statement("qmlprop", propname);
+          return as_statement_js("qmlprop", propname);
         } else {
           statement.in_qmlpropdef = true;
           return as_statement("qmlprop", propname);
         }
       }
 
-      } else if (is("keyword", "default")) {
-        return qmldefaultprop();
+    } else if (is("keyword", "default")) {
+      return qmldefaultprop();
+    } else if (S.token.type == "string") {
+      if (!!is_block_begin) {
+        // "var xxx = { 'var' qml type syntax }"
+        block_in_qmlvartype = true;
       }
-    }
-
-    if (S.token.type == "string") {
-      var valid_lab = /^[a-zA-Z_$0-9]+$/.test(S.token.value);
-      if (valid_lab) {
-        if (!!is_block_begin) {
-          // "var xxx = { 'var' qml type syntax }"
-          block_in_qmlvartype = true;
-        }
-        if (block_in_qmlvartype) {
-          next();
-          // Evaluatable item
-          expect(":");
-          statement.in_qmlpropdef = true;
-          return as_expr_statement("qmlprop", S.token.value);
-        } else {
-          unexpected();
-        }
-      } else if (!!is_block_begin || block_in_qmlvartype) {
-        token_error(S.token, "Invalid property id. Expected : \"property name\".");
+      if (block_in_qmlvartype) {
+        next();
+        // Evaluatable item
+        expect(":");
+        statement.in_qmlpropdef = true;
+        return as_expr_statement("qmlprop", S.token.value);
       } else {
         unexpected();
       }
     } else if (S.token.type == "number"||S.token.type == "operator"||S.token.type == "atom") {
       unexpected();
     } else if (is("punc", ";")) {
-      // just skip semicolon opt
-      next();
+      if (block_in_qmlvartype) {
+        unexpected();
+      } else {
+        // just skip semicolon opt
+        next();
+      }
     } else {
       todo();
     }
