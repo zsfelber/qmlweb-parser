@@ -128,7 +128,9 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       case ".":
         return is_token(peek(), "name", "pragma") ? qml_pragma_statement() : unexpected();
       case "{":
-        return qmlblock();
+        if (in_qmlpropdef) {
+          return qmlblock();
+        }
       }
     case "keyword":
       switch (S.token.value) {
@@ -329,7 +331,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       } else if (is("keyword", "default")) {
         return qmldefaultprop();
       }
-    } else if (is_even) {
+    } else if (!!is_even) {
       var result = statement();
       if (!is("punc", ",") && !is("punc", "}")) {
         unexpected();
@@ -338,21 +340,21 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     }
 
     if (S.token.type == "string") {
-      var valid_lab = /[a-zA-Z_$0-9]+/.test(S.token.value);
+      var valid_lab = /^[a-zA-Z_$0-9]+$/.test(S.token.value);
       if (valid_lab) {
-        if (is_block_begin) {
+        if (!!is_block_begin) {
           // "var xxx = { json-like-syntax }"
           block_in_qmljsonlike = true;
         }
         if (block_in_qmljsonlike) {
+          next();
           // Evaluatable item
-          var propname = subscripts(as_name(), false);
           expect(":");
-          return as_statement("qmlprop", propname);
+          return as_statement("qmlprop", S.token.value);
         } else {
           unexpected();
         }
-      } else if (is_block_begin || block_in_qmljsonlike) {
+      } else if (!!is_block_begin || block_in_qmljsonlike) {
         token_error(S.token, "Invalid label. Expected : \"property name\".");
       } else {
         unexpected();
