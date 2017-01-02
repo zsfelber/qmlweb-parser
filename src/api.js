@@ -280,13 +280,19 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     if (is("punc", ":")) {
       next();
       statement.in_qmlpropdef = true;
-      return as_statement(readonly?"qmlpropdefro":"qmlpropdef", name, type, templTarg);
+      if (templTarg)
+        return as_statement(readonly?"qmlpropdefro":"qmlpropdef", name, type, templTarg);
+      else
+        return as_statement(readonly?"qmlpropdefro":"qmlpropdef", name, type);
     } else if (!!readonly) {
       token_error(S.token, "Expected ': ...'.");
     } else {
       if (is("punc", ";"))
         next();
-      return as(readonly?"qmlpropdefro":"qmlpropdef", name, type, templTarg);
+      if (templTarg)
+        return as(readonly?"qmlpropdefro":"qmlpropdef", name, type, templTarg);
+      else
+        return as(readonly?"qmlpropdefro":"qmlpropdef", name, type);
     }
   }
 
