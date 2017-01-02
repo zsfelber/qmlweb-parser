@@ -234,7 +234,23 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   function qmlpropdef(readonly) {
     var type = S.token.value;
     next();
-    var name = S.token.value;
+    var name, opOrName = S.token.value, templTarg;
+    if (S.token.type=="operator" && opOrName=="<") {
+        next();
+        if (S.token.type=="name") {
+            templTarg = S.token.value;
+            next();
+            if (S.token.type=="operator" && opOrName==">") {
+            } else {
+                token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected '>'");
+            }
+        } else {
+            token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+        }
+    } else {
+        name = opOrName;
+    }
+
     next();
     if (type == "alias") {
       expect(":");
@@ -255,13 +271,13 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     if (is("punc", ":")) {
       next();
       statement.in_qmlpropdef = true;
-      return as_statement(readonly?"qmlpropdefro":"qmlpropdef", name, type);
+      return as_statement(readonly?"qmlpropdefro":"qmlpropdef", name, type, templTarg);
     } else if (!!readonly) {
       token_error(S.token, "Expected ': ...'.");
     } else {
       if (is("punc", ";"))
         next();
-      return as(readonly?"qmlpropdefro":"qmlpropdef", name, type);
+      return as(readonly?"qmlpropdefro":"qmlpropdef", name, type, templTarg);
     }
   }
 
