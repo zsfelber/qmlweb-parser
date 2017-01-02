@@ -240,7 +240,13 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         if (S.token.type=="name") {
             templTarg = S.token.value;
             next();
+            opOrName = S.token.value;
             if (S.token.type=="operator" && opOrName==">") {
+                next();
+                name = S.token.value;
+                if (S.token.type!="name") {
+                    token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+                }
             } else {
                 token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected '>'");
             }
@@ -249,6 +255,9 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         }
     } else {
         name = opOrName;
+        if (S.token.type!="name") {
+            token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+        }
     }
 
     next();
