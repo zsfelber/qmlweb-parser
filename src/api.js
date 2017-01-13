@@ -413,11 +413,13 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         block_in_qmlvartype = true;
       }
       if (block_in_qmlvartype) {
+        var labelSt = S.token.value;
         next();
         // Evaluatable item
         expect(":");
         statement.in_qmlpropdef = true;
-        return as_expr_statement("qmlprop", S.token.value);
+        //return as_expr_statement("qmlprop", S.token.value);
+        return as_expr_statement("qmlprop", labelSt);
       } else {
         unexpected();
       }
