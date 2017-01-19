@@ -265,16 +265,19 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       expect(":");
       if (!is("name"))
         unexpected();
-      var objName = S.token.value;
+      var args = [readonly?"qmlaliasdefro":"qmlaliasdef", name, S.token.value];
       next();
-      if (is("punc", ".")) {
+      while (is("punc", ".")) {
         next();
         if (!is("name"))
           unexpected();
-        var propName = S.token.value;
+        args.push(S.token.value);
         next();
       }
-      return as(readonly?"qmlaliasdefro":"qmlaliasdef", name, objName, propName);
+      if (args.length>4) {
+        console.warn("Alias path length > 2 : "+path);
+      }
+      return as.apply(this, args);
     }
 
     if (is("punc", ":")) {
