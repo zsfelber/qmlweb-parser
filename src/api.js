@@ -320,9 +320,9 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       }
       args = args.concat(path);
 
-      if (args.length>4) {
-        console.warn("Alias path length > 2 : "+JSON.stringify(args));
-      }
+      //if (args.length>4) {
+      //  console.warn("Alias path length > 2 : "+JSON.stringify(args));
+      //}
       return as.apply(this, args);
     }
 
