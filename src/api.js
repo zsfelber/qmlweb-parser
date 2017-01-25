@@ -262,41 +262,66 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
 
     next();
     if (type == "alias") {
+
       expect(":");
       if (!is("name"))
         unexpected();
+
       var args = [readonly?"qmlaliasdefro":"qmlaliasdef", name];
       var path = [];
       var stack = [];
-      for(;;) {
-        if (is("name")) {
-          path.push(S.token.value);
-          next();
-        } else {
-          break;
-        }
 
-        //  unexpected();
-        if (is("punc", ".")) {
+      for(;;) {
+        path.push(S.token.value);
+
+        var forw = peek();
+        var ready = 1;
+        if (is_token(forw, "punc", ".")) {
+          ready = 0;
           next();
+          forw = peek();
         } else {
-          while (is("punc", "[")) {
-            var op = path;
-            stack.push(path);
-            op.push(path = []);
-          }
-          while (is("punc", "]")) {
+          var any = 0;
+          while (is_token(forw, "punc", "]")) {
+            next();
+            forw = peek();
             if (!stack.length) {
               token_error(S.token, "Unexpected token " + S.token.type + " ']', no starting '['");
             }
             path = stack.pop();
+            any = 1;
           }
+          if (stack.length) {
+            token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", missing closing ']'");
+          }
+          while (is_token(forw, "punc", "[")) {
+            next();
+            forw = peek();
+            var op = path;
+            stack.push(path);
+            op.push(path = []);
+            any = 1;
+          }
+          if (!any) {
+            next();
+            break;
+          }
+          ready = !stack.length;
+        }
+        //if (is_token(peek(), "name", null)) {
+        if (is_token(forw, "name")) {
+          next();
+        } else {
+          if (ready) break;
+          else unexpected();
         }
       }
       if (stack.length) {
         token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", missing closing ']'");
       }
+      args = args.concat(path);
 
+      console.log("alias:"+JSON.stringify(args));
       if (args.length>4) {
         console.warn("Alias path length > 2 : "+path);
       }
