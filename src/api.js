@@ -308,9 +308,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
           }
           ready = !stack.length;
         }
-        //if (is_token(peek(), "name", null)) {
+        next();
         if (is_token(forw, "name")) {
-          next();
         } else {
           if (ready) break;
           else unexpected();
@@ -321,9 +320,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       }
       args = args.concat(path);
 
-      console.log("alias:"+JSON.stringify(args));
       if (args.length>4) {
-        console.warn("Alias path length > 2 : "+path);
+        console.warn("Alias path length > 2 : "+JSON.stringify(args));
       }
       return as.apply(this, args);
     }
