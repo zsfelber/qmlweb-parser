@@ -265,15 +265,38 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       expect(":");
       if (!is("name"))
         unexpected();
-      var args = [readonly?"qmlaliasdefro":"qmlaliasdef", name, S.token.value];
-      next();
-      while (is("punc", ".")) {
-        next();
-        if (!is("name"))
-          unexpected();
-        args.push(S.token.value);
-        next();
+      var args = [readonly?"qmlaliasdefro":"qmlaliasdef", name];
+      var path = [];
+      var stack = [];
+      for(;;) {
+        if (is("name")) {
+          path.push(S.token.value);
+          next();
+        } else {
+          break;
+        }
+
+        //  unexpected();
+        if (is("punc", ".")) {
+          next();
+        } else {
+          while (is("punc", "[")) {
+            var op = path;
+            stack.push(path);
+            op.push(path = []);
+          }
+          while (is("punc", "]")) {
+            if (!stack.length) {
+              token_error(S.token, "Unexpected token " + S.token.type + " ']', no starting '['");
+            }
+            path = stack.pop();
+          }
+        }
       }
+      if (stack.length) {
+        token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", missing closing ']'");
+      }
+
       if (args.length>4) {
         console.warn("Alias path length > 2 : "+path);
       }
