@@ -27,3 +27,6 @@ Intended to fix parse errors (like that of readonly property) and maybe another 
 
 Added:
 [readonly]  [list<xxx> templates]   [var xxx = {"aaa:" : <expression>}  json like var property syntax ]
+
+See also [@zsfelber/qmlweb]
+See also [@zsfelber/gulp-qmlweb]
