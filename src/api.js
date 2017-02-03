@@ -101,8 +101,12 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     var temp = this[a];
     this[a] = this[b];
     this[b] = temp;
-  }
+  };
 
+  // <---x---->       +4
+  //     <----x--->   -12
+  // <---x--------x------>  +12
+  //     <-------->         +7
   function leftinter(interv1, interv2) {
     return interv1[1] - interv2[0];
   }
@@ -110,33 +114,51 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   function intersect(interv1, interv2) {
     var p1 = leftinter(interv1,interv2);
     var p2 = leftinter(interv2,interv1);
-    if (p1 >= 0 && p2 >= 0) {
-      var r = [interv2[0]+p1, interv1[0]+p2];
+    console.log("  "+p1+","+p2);
+    var r;
+    if (p1 >= 0) {
+      if (p2 >= 0) {
+        r = [interv1[1]-p1, interv2[1]-p2];
+      } else {
+        r = [interv1[1]-p1, interv1[1]];
+      }
+    } else if (p2 >= 0) {
+      r = [interv2[1]-p2, interv2[1]];
+    }
+
+    if (r) {
       if (r[0] > r[1]) {
         r.swap(0, 1);
       }
+      console.log("    "+r);
       return r;
     }
   }
 
   function replaceIntersect(interv1, interv2, txt) {
-    var r;
-    if (r = intersect(interv1,interv2)) {
-      return   TEXT.substring(interv1[0], r[0] - interv1[0]) +
-        txt +  TEXT.substring(r[1],       interv1[1] - r[1]);
+    var inters;
+    if (inters = intersect(interv1,interv2)) {
+      return   TEXT.substring(interv1[0], inters[0]) +
+        txt +  TEXT.substring(inters[1],  interv1[1]);
     }
   }
 
-  function putSource(begin, end) {
-    var interv1 = [begin, end];
-    for (var interv2 : translate) {
+  function copySource(begin, end) {
+    var interv1 = [parseInt(begin), parseInt(end)];
+    console.log(":"+JSON.stringify(interv1));
+    for (var interv2 in translate) {
+      interv2 = interv2.split(",");
+      interv2[0] = parseInt(interv2[0]);
+      interv2[1] = parseInt(interv2[1]);
+      console.log(JSON.stringify(interv2));
       var txt = translate[interv2];
-      result = replaceIntersect(interv1, interv2, txt);
+      var result = replaceIntersect(interv1, interv2, txt);
       if (result !== undefined) {
+        console.log(TEXT.substring(begin, end)+"\n==>\n"+result);
         return result;
       }
     }
-    return   TEXT.substring(begin, end-begin);
+    return TEXT.substring(begin, end);
   }
 
   // WARNING: Here the original parse() code gets embedded
@@ -203,16 +225,15 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     var prec = op != null ? PRECEDENCE[op] : null;
     if (prec != null && prec > min_prec) {
       next();
-      void rightstart = S.token.pos;
+      var rightstart = S.token.pos;
       var right = expr_op(maybe_unary(true), prec, no_in);
 
       if (op==="instanceof") {
-        void rightend = S.token.pos;
-        translate.push([leftstart,rightend]:
-                       "QmlWeb.$instanceOf("+
-                         TEXT.substr(leftstart, leftend - leftstart)+",\""+
-                         TEXT.substr(rightstart, rightend - rightstart)+"\","+
-                         "this.$component)" );
+        var rightend = S.token.pos;
+        translate[[parseInt(leftstart),parseInt(rightend)]] =
+                       "QmlWeb.$instanceOf("+TEXT.substring(leftstart, leftend)+",\""+
+                         TEXT.substring(rightstart, rightend)+"\", this.$component)" ;
+        console.log(TEXT.substring(leftstart, rightend)+"\n-->\n"+translate[[leftstart,rightend]]);
       }
 
       return expr_op(as("binary", op, left, right), min_prec, no_in);
@@ -224,7 +245,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     var from = S.token.pos;
     var stat = expr_list("]", !exigent_mode, true);
     var to = S.token.pos;
-    return as("array", stat, "[" + TEXT.substr(from, to - from));
+    return as("array", stat, "[" + copySource(from, to));
   };
 
   expression = function(commas, no_in) {
@@ -253,7 +274,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     res.push(forw_call(forw_forw_call));
     var end = S.token.pos;
     S.in_function--;
-    res.push(TEXT.substr(start, end - start));
+    res.push(copySource(start, end));
     return res;
   }
   function as_statement() {
@@ -466,7 +487,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
         var stat = function_(true);
         var to = S.token.pos;
         var name = stat[1];
-        return as("qmlmethod", name, stat, TEXT.substr(from, to - from));
+        return as("qmlmethod", name, stat, copySource(from, to));
       } else if (is("name", "signal")) {
         next();
         if (is("punc", ":")) {
