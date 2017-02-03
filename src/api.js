@@ -95,6 +95,50 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   var TEXT = $TEXT.replace(/\r\n?|[\n\u2028\u2029]/g, "\n").replace(/^\uFEFF/, '');
   $TEXT = qmlweb_tokenizer($TEXT, true);
 
+  var translate = {};
+
+  Array.prototype.swap = function(a, b) {
+    var temp = this[a];
+    this[a] = this[b];
+    this[b] = temp;
+  }
+
+  function leftinter(interv1, interv2) {
+    return interv1[1] - interv2[0];
+  }
+
+  function intersect(interv1, interv2) {
+    var p1 = leftinter(interv1,interv2);
+    var p2 = leftinter(interv2,interv1);
+    if (p1 >= 0 && p2 >= 0) {
+      var r = [interv2[0]+p1, interv1[0]+p2];
+      if (r[0] > r[1]) {
+        r.swap(0, 1);
+      }
+      return r;
+    }
+  }
+
+  function replaceIntersect(interv1, interv2, txt) {
+    var r;
+    if (r = intersect(interv1,interv2)) {
+      return   TEXT.substring(interv1[0], r[0] - interv1[0]) +
+        txt +  TEXT.substring(r[1],       interv1[1] - r[1]);
+    }
+  }
+
+  function putSource(begin, end) {
+    var interv1 = [begin, end];
+    for (var interv2 : translate) {
+      var txt = translate[interv2];
+      result = replaceIntersect(interv1, interv2, txt);
+      if (result !== undefined) {
+        return result;
+      }
+    }
+    return   TEXT.substring(begin, end-begin);
+  }
+
   // WARNING: Here the original parse() code gets embedded
   parse($TEXT,exigent_mode,false);
   // NOTE: Don't insert spaces between arguments!
@@ -104,11 +148,11 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
   croak = function(msg, line, col, pos) {
     var ctx = S.input.context();
     throw new QMLParseError(msg,
-      line != null ? line : ctx.tokline,
-      col != null ? col : ctx.tokcol,
-      pos != null ? pos : ctx.tokpos,
-      TEXT
-    );
+                            line != null ? line : ctx.tokline,
+                                           col != null ? col : ctx.tokcol,
+                                                         pos != null ? pos : ctx.tokpos,
+                                                                       TEXT
+                            );
   };
 
   expect_token = function(type, val) {
@@ -145,6 +189,35 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       return forw_call();
     else
       return statement_js();
+  };
+
+  expr_ops = function (no_in) {
+    var leftstart = S.token.pos;
+    return expr_op(maybe_unary(true), 0, no_in, leftstart);
+  };
+
+  expr_op = function (left, min_prec, no_in, leftstart) {
+    var leftend = S.token.pos;
+    var op = is("operator") ? S.token.value : null;
+    if (op && op == "in" && no_in) op = null;
+    var prec = op != null ? PRECEDENCE[op] : null;
+    if (prec != null && prec > min_prec) {
+      next();
+      void rightstart = S.token.pos;
+      var right = expr_op(maybe_unary(true), prec, no_in);
+
+      if (op==="instanceof") {
+        void rightend = S.token.pos;
+        translate.push([leftstart,rightend]:
+                       "QmlWeb.$instanceOf("+
+                         TEXT.substr(leftstart, leftend - leftstart)+",\""+
+                         TEXT.substr(rightstart, rightend - rightstart)+"\","+
+                         "this.$component)" );
+      }
+
+      return expr_op(as("binary", op, left, right), min_prec, no_in);
+    }
+    return left;
   };
 
   array_ = function() {
@@ -205,7 +278,7 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
 
   function qml_is_element(name) {
     if (typeof name === "string") {
-        return name[0].toUpperCase() === name[0];
+      return name[0].toUpperCase() === name[0];
     }
     return qml_is_element(name[1]) && name[2][0].toUpperCase() === name[2][0];
   }
@@ -236,28 +309,28 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
     next();
     var name, opOrName = S.token.value, templTarg;
     if (S.token.type=="operator" && opOrName=="<") {
+      next();
+      if (S.token.type=="name") {
+        templTarg = S.token.value;
         next();
-        if (S.token.type=="name") {
-            templTarg = S.token.value;
-            next();
-            opOrName = S.token.value;
-            if (S.token.type=="operator" && opOrName==">") {
-                next();
-                name = S.token.value;
-                if (S.token.type!="name") {
-                    token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
-                }
-            } else {
-                token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected '>'");
-            }
+        opOrName = S.token.value;
+        if (S.token.type=="operator" && opOrName==">") {
+          next();
+          name = S.token.value;
+          if (S.token.type!="name") {
+            token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+          }
         } else {
-            token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+          token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected '>'");
         }
+      } else {
+        token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+      }
     } else {
-        name = opOrName;
-        if (S.token.type!="name") {
-            token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
-        }
+      name = opOrName;
+      if (S.token.type!="name") {
+        token_error(S.token, "Unexpected token " + S.token.type + " " + S.token.val + ", expected name");
+      }
     }
 
     next();
@@ -570,15 +643,15 @@ function qmlweb_jsparse(source) {
     var item = main_scope[i];
 
     switch (item[0]) {
-      case "var":
-        obj.exports.push(item[1][0][0]);
-        break ;
-      case "defun":
-        obj.exports.push(item[1]);
-        break ;
-      case "qmlpragma":
-        obj.pragma.push(item[1]);
-        break ;
+    case "var":
+      obj.exports.push(item[1][0][0]);
+      break ;
+    case "defun":
+      obj.exports.push(item[1]);
+      break ;
+    case "qmlpragma":
+      obj.pragma.push(item[1]);
+      break ;
     }
   }
   return obj;

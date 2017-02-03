@@ -24,7 +24,8 @@
     "test": "gulp test",
     "cover": "gulp cover",
     "build": "gulp build",
-    "watch": "gulp watch"
+    "watch": "gulp watch",
+    "debug-gulp": "devtool node_modules/gulp/bin/gulp.js"
   },
   "main": "lib/qmlweb.parser.js",
   "files": [
