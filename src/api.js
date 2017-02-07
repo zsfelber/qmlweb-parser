@@ -211,8 +211,8 @@ function qmlweb_parse($TEXT, document_type, exigent_mode) {
       if (op==="instanceof") {
         var rightend = S.token.pos;
         translate[[parseInt(leftstart),parseInt(rightend)]] =
-                       "QmlWeb.$instanceOf("+TEXT.substring(leftstart, leftend)+",\""+
-                         TEXT.substring(rightstart, rightend)+"\", this.$component)" ;
+                       "QmlWeb.$instanceOf("+TEXT.substring(leftstart, leftend).trim()+",\""+
+                         TEXT.substring(rightstart, rightend).trim()+"\", this.$component)" ;
       }
 
       return expr_op(as("binary", op, left, right), min_prec, no_in);
